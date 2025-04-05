@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import ForeignKey, Table, Column, DateTime,Integer
+from sqlalchemy import ForeignKey, Table, Column, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 from eralchemy2 import render_er
@@ -7,24 +7,33 @@ from eralchemy2 import render_er
 # Initialize Flask-SQLAlchemy 2.0
 db = SQLAlchemy()
 
+
 class User(db.Model):
     __tablename__ = 'user'
-    
-    #id = Column(Integer, primary_key=True)
+
+    # id = Column(Integer, primary_key=True)
     id: Mapped[int] = mapped_column(primary_key=True)
-    #username = Column(String(40), nullable=False, unique=True)
+    # username = Column(String(40), nullable=False, unique=True)
     username: Mapped[str] = mapped_column(db.String(40), nullable=False, unique=True)
     password: Mapped[str] = mapped_column(db.String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(db.String(200), nullable=False)
     email: Mapped[str] = mapped_column(db.String(100), nullable=False, unique=True)
     created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    #favorites = relationship('Favorite', backref='user', lazy=True)
+    # favorites = relationship('Favorite', backref='user', lazy=True)
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "full_name": self.full_name
+            # "favorites" : self.favorites
+        }
 
 class Planet(db.Model):
     __tablename__ = 'planet'
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(db.String(100), nullable=False)
     diameter: Mapped[str] = mapped_column(db.String(100), nullable=False)
@@ -36,15 +45,22 @@ class Planet(db.Model):
     terrain: Mapped[str] = mapped_column(db.String(100), nullable=False)
     surface_water: Mapped[str] = mapped_column(db.String(100), nullable=False)
     created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    edited: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+    edited: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="planet")
 
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "diameter": self.diameter
+        }
+
+
 class Vehicle(db.Model):
     __tablename__ = 'vehicle'
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(db.String(100), nullable=False)
     model: Mapped[str] = mapped_column(db.String(100), nullable=False)
@@ -58,15 +74,21 @@ class Vehicle(db.Model):
     consumables: Mapped[str] = mapped_column(db.String(100), nullable=False)
     url: Mapped[str] = mapped_column(db.String(200), nullable=False)
     created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    edited: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+    edited: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="vehicle")
 
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "model": self.model
+        }
+
 class People(db.Model):
     __tablename__ = 'people'
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(db.String(100), nullable=False)
     birth_year: Mapped[str] = mapped_column(db.String(100), nullable=False)
@@ -79,15 +101,22 @@ class People(db.Model):
     homeworld: Mapped[str] = mapped_column(db.String(40), nullable=False)
     url: Mapped[str] = mapped_column(db.String(100), nullable=False)
     created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    edited: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+    edited: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="people")
 
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "birth_year": self.birth_year
+        }
+
+
 class Favorite(db.Model):
     __tablename__ = 'favorite'
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     people_id = Column(Integer, ForeignKey('people.id'), nullable=True)
@@ -98,6 +127,14 @@ class Favorite(db.Model):
     people: Mapped["People | None"] = relationship(back_populates="favorites")
     vehicle: Mapped["Vehicle | None"] = relationship(back_populates="favorites")
     planet: Mapped["Planet | None"] = relationship(back_populates="favorites")
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "planet": self.planet.serialize() if self.planet else None,
+            "people": self.people.serialize() if self.people else None
+        }
 
 # Generate a diagram for the database schema
 render_er(db.Model, 'diagram.png')
